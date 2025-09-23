@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
     "accounts",
     "reviews",
+    "importer",
 ]
 
 MIDDLEWARE = [
@@ -164,3 +165,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+
+GIS_KEY = config("GIS_KEY")
+GIS_AUTH_TOKEN = config("GIS_AUTH_TOKEN")

@@ -52,10 +52,12 @@ class Review(models.Model):
     sentiment = models.CharField(
         max_length=10,
         choices=TONE_CHOICES,
+        null=True,
         verbose_name="Тональность отзыва"
     )
     confidence = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        null=True,
         verbose_name="Уверенность модели",
         help_text="Значение от 0.0 до 1.0"
     )
