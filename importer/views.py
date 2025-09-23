@@ -42,12 +42,11 @@ class GISReviews(APIView):
                     if not Review.objects.filter(
                             institution_id=institution.pk,
                             text=review_data["text"],
-                            created_at=review_data["date_created"]
                     ).exists():
                         Review.objects.create(
                             institution_id=institution.pk,
                             text=review_data["text"],
-                            created_at=review_data["date_created"],
+                            reviewed_at=review_data["date_created"],
                         )
                         saved_count += 1
                 else:

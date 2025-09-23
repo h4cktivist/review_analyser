@@ -66,6 +66,7 @@ class Review(models.Model):
         verbose_name="Ключевые слова",
         help_text="Список ключевых слов в формате JSON"
     )
+    reviewed_at = models.DateTimeField(verbose_name="Дата написания отзыва")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
