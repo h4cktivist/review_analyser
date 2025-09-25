@@ -59,12 +59,6 @@ class InstitutionDetail(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if institution.reviews.exists():
-            return Response(
-                {"error": "Can't remove institution with related reviews"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         institution.delete()
         return Response(
             {"message": "Institution deleted successfully"},
@@ -123,12 +117,6 @@ class EventDetail(APIView):
             return Response(
                 {"error": "Event is not found"},
                 status=status.HTTP_404_NOT_FOUND
-            )
-
-        if event.reviews.exists():
-            return Response(
-                {"error": "Can't remove event with related reviews"},
-                status=status.HTTP_400_BAD_REQUEST
             )
 
         event.delete()
