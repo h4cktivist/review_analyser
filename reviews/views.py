@@ -128,7 +128,7 @@ class EventDetail(APIView):
 
 class ReviewList(APIView):
     def get(self, request):
-        reviews = Review.objects.all()
+        reviews = Review.objects.all().order_by("-reviewed_at")
         serializer = ReviewSerializer(reviews, many=True)
         return Response(serializer.data)
 
