@@ -16,6 +16,12 @@ pip install -r requirements.txt
 docker run --name redis-container -d -p 6379:6379 redis
 ```
 
+Установить и запустить OpenSearch
+
+```shell
+docker run -it -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" --name opensearch-node -d --env-file .env opensearchproject/opensearch:latest
+```
+
 Примененить миграции
 
 ```shell

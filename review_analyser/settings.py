@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "django_opensearch_dsl",
 
     "accounts",
     "reviews",
@@ -178,3 +179,22 @@ CELERY_TIMEZONE = 'Asia/Yekaterinburg'
 
 GIS_KEY = config("GIS_KEY")
 GIS_AUTH_TOKEN = config("GIS_AUTH_TOKEN")
+
+
+OPENSEARCH_DSL = {
+    'default': {
+        'hosts': [
+            {
+                'host': config('OPENSEARCH_HOST'),
+                'port': config('OPENSEARCH_PORT'),
+                'http_compress': True,
+            }
+        ],
+        'timeout': 30,
+        'max_retries': 10,
+        'retry_on_timeout': True,
+        'http_auth': None,
+        'use_ssl': False,
+        'verify_certs': False,
+    }
+}

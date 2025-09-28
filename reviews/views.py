@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from .documents import ReviewDocument
 from .models import Institution, Event, Review
 from .serializers import InstitutionSerializer, EventSerializer, ReviewSerializer
 
@@ -184,3 +185,30 @@ class ReviewDetail(APIView):
             {"message": "Review deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
+
+class ReviewSearch(APIView):
+    def get(self, request, *args, **kwargs):
+        search_query = request.GET.get('q', '').strip()
+        if not search_query:
+            return Response({
+                'results': [],
+                'count': 0,
+                'query': search_query
+            })
+        try:
+            search = ReviewDocument.search().query(
+                'match', text=search_query
+            )
+            response = search.execute()
+            review_ids = [hit.meta.id for hit in response]
+            reviews = Review.objects.filter(id__in=review_ids)
+            serializer = ReviewSerializer(reviews, many=True)
+            return Response({
+                'results': serializer.data,
+                'count': len(serializer.data),
+                'query': search_query,
+            })
+        except Exception as e:
+            return Response({
+                'error': f'Error occured: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
