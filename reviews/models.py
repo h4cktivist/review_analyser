@@ -18,6 +18,7 @@ class Institution(models.Model):
 
 class Event(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название")
+    date = models.DateTimeField(verbose_name="Дата мероприятия")
 
     class Meta:
         verbose_name = "Мероприятие"
