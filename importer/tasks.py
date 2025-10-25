@@ -3,6 +3,7 @@ from celery import shared_task
 from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
 from review_processor.keyword_extractor import keyword_extractor
+from review_processor.review_classifier import review_classifier
 
 
 @shared_task
@@ -53,3 +54,23 @@ def compare_review_with_event(review_id: int):
     except Exception as e:
         print(f"Error with review {review_id}: {str(e)}")
 
+
+@shared_task
+def classify_review_sentiment(review_id: int):
+    try:
+        review = Review.objects.get(id=review_id)
+        if not review:
+            return
+
+        cls_result = review_classifier.predict(text=review.text)
+        if abs(cls_result['probabilities']['negative'] - cls_result['probabilities']['positive']) < 0.15:
+            review.sentiment = 'neutral'
+        else:
+            review.sentiment = cls_result['sentiment']
+            review.confidence = cls_result['confidence']
+        review.save()
+
+    except Review.DoesNotExist:
+        print(f"Review {review_id} is not found")
+    except Exception as e:
+        print(f"Error with review {review_id}: {str(e)}")

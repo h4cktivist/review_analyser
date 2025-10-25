@@ -8,7 +8,7 @@ from django.conf import settings
 from reviews.models import Institution, Review
 from reviews.serializers import ReviewSerializer
 from .gis_importer import fetch_reviews_with_pagination
-from .tasks import extract_keywords_for_review, compare_review_with_event
+from .tasks import extract_keywords_for_review, compare_review_with_event, classify_review_sentiment
 
 
 class GISReviews(APIView):
@@ -57,6 +57,7 @@ class GISReviews(APIView):
                 for review in imported_reviews:
                     extract_keywords_for_review.delay(review.id)
                     compare_review_with_event(review.id)
+                    classify_review_sentiment(review.id)
 
             serializer = ReviewSerializer(imported_reviews, many=True)
 

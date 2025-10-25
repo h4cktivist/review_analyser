@@ -32,7 +32,7 @@ class Review(models.Model):
     TONE_CHOICES = [
         ("positive", "Положительный"),
         ("negative", "Отрицательный"),
-        ("spam", "Спам"),
+        ("neutral", "Нейтральный"),
     ]
 
     institution = models.ForeignKey(
@@ -51,7 +51,7 @@ class Review(models.Model):
     )
     text = models.TextField(verbose_name="Текст отзыва")
     sentiment = models.CharField(
-        max_length=10,
+        max_length=64,
         choices=TONE_CHOICES,
         null=True,
         verbose_name="Тональность отзыва"
