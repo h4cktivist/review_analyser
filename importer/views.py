@@ -56,8 +56,8 @@ class GISReviews(APIView):
             if imported_reviews:
                 for review in imported_reviews:
                     extract_keywords_for_review.delay(review.id)
-                    compare_review_with_event(review.id)
-                    classify_review_sentiment(review.id)
+                    compare_review_with_event.delay(review.id)
+                    classify_review_sentiment.delay(review.id)
 
             serializer = ReviewSerializer(imported_reviews, many=True)
 
