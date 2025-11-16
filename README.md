@@ -22,9 +22,10 @@ docker run --name redis-container -d -p 6379:6379 redis
 docker run -it -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" --name opensearch-node -d --env-file .env opensearchproject/opensearch:latest
 ```
 
-Скачать [архив модели классификации](https://disk.yandex.ru/d/Yvdh_kowqPRo4g) и распаковать содержимое в директорию:
+Скачать архивы [модели классификации](https://disk.yandex.ru/d/Yvdh_kowqPRo4g) и [модели извлечения аспектов](https://disk.yandex.ru/d/EaUnb_N5DBiJ3g), и распаковать их содержимое в директорию models:
 ```shell
 tar -xf ./classification_model.zip -C models
+tar -xf ./aspect_extraction_model.zip -C models
 ```
 
 Примененить миграции

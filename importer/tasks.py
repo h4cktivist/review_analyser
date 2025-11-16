@@ -2,28 +2,28 @@ from celery import shared_task
 
 from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
-from review_processor.keyword_extractor import keyword_extractor
+from review_processor.aspect_extractor import aspect_extractor
 from review_processor.review_classifier import review_classifier
 
 
 @shared_task
-def extract_keywords_for_review(review_id: int):
+def extract_aspects_for_review(review_id: int):
     try:
         review = Review.objects.get(id=review_id)
 
         if not review.text:
-            review.keywords = []
-            review.keywords_processed = True
+            review.positive_aspects = []
+            review.negative_aspects = []
             review.save()
             return
 
-        keywords = keyword_extractor.extract_single_review_keywords(review.text)
+        positive_aspects, negative_aspects = aspect_extractor.extract_aspects(review.text)
 
-        review.keywords = keywords
-        review.keywords_processed = True
+        review.positive_aspects = positive_aspects
+        review.negative_aspects = negative_aspects
         review.save()
 
-        print(f"Review {review_id} was processed, number of keywords: {len(keywords)}")
+        print(f"Review {review_id} was processed")
 
     except Review.DoesNotExist:
         print(f"Review {review_id} is not found")

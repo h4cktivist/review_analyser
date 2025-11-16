@@ -62,10 +62,15 @@ class Review(models.Model):
         verbose_name="Уверенность модели",
         help_text="Значение от 0.0 до 1.0"
     )
-    keywords = models.JSONField(
+    positive_aspects = models.JSONField(
         default=list,
-        verbose_name="Ключевые слова",
-        help_text="Список ключевых слов в формате JSON"
+        verbose_name="Позитивные аспекты отзыва",
+        help_text="Список аспектов в формате JSON"
+    )
+    negative_aspects = models.JSONField(
+        default=list,
+        verbose_name="Негативные аспекты отзыва",
+        help_text="Список аспектов в формате JSON"
     )
     reviewed_at = models.DateTimeField(verbose_name="Дата написания отзыва")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
