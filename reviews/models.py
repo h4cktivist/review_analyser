@@ -5,8 +5,12 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Institution(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название")
     address = models.TextField(verbose_name="Адрес")
-    yandex_map_link = models.URLField(max_length=500, verbose_name="Ссылка на Yandex Maps")
-    gis_map_link = models.URLField(max_length=500, verbose_name="Ссылка на 2GIS")
+    yandex_map_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на Yandex Maps")
+    gis_map_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на 2GIS")
+    otzovik_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на Отзовик")
+    vk_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на ВК")
+    telegram_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на Telegram")
+    ok_link = models.URLField(max_length=500, null=True, verbose_name="Ссылка на Одноклассники")
 
     class Meta:
         verbose_name = "Учреждение"
