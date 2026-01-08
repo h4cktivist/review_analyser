@@ -9,6 +9,7 @@ from reviews.models import Institution, Review
 from reviews.serializers import ReviewSerializer
 from .gis_importer import fetch_reviews_with_pagination
 from .yandex_importer import yandex_reviews_importer
+from .telegram_importer import parse_telegram_comments
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
 
 
@@ -104,6 +105,62 @@ class YandexReviews(APIView):
                             institution_id=institution.pk,
                             text=review_data["text"],
                             source="Яндекс Карты",
+                            reviewed_at=review_data["date"],
+                        )
+                        saved_count += 1
+                else:
+                    skipped_count += 1
+
+            imported_reviews = Review.objects.order_by("-created_at")[:saved_count]
+            if imported_reviews:
+                for review in imported_reviews:
+                    compare_review_with_event.delay(review.id)
+                    classify_review_sentiment.delay(review.id)
+                    extract_aspects_for_review.delay(review.id)
+
+            serializer = ReviewSerializer(imported_reviews, many=True)
+
+            return Response({
+                "message": f"Successfully imported {saved_count} reviews, skipped {skipped_count} duplicates",
+                "imported_reviews": serializer.data,
+                "total_processed": len(reviews_data)
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                "error": f"Error occured: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TelegramReviews(APIView):
+    def get_object(self, pk):
+        try:
+            return Institution.objects.get(pk=pk)
+        except Institution.DoesNotExist:
+            return None
+
+    def post(self, request):
+        institution = self.get_object(request.data.get("institution_id"))
+        if institution is None:
+            return Response(
+                {"error": "Institution is not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        institution_tg_id = institution.telegram_link.split("/")[-1]
+
+        try:
+            reviews_data = parse_telegram_comments(institution_tg_id)
+
+            saved_count, skipped_count = 0, 0
+            with transaction.atomic():
+                for review_data in reviews_data:
+                    if not Review.objects.filter(
+                            institution_id=institution.pk,
+                            text=review_data["text"],
+                    ).exists():
+                        Review.objects.create(
+                            institution_id=institution.pk,
+                            text=review_data["text"],
+                            source="Telegram",
                             reviewed_at=review_data["date"],
                         )
                         saved_count += 1

@@ -183,6 +183,9 @@ CELERY_TIMEZONE = 'Asia/Yekaterinburg'
 GIS_KEY = config("GIS_KEY")
 GIS_AUTH_TOKEN = config("GIS_AUTH_TOKEN")
 
+TELEGRAM_API_ID = config("TELEGRAM_API_ID")
+TELEGRAM_API_HASH = config("TELEGRAM_API_HASH")
+
 
 OPENSEARCH_DSL = {
     'default': {
