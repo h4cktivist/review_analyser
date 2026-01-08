@@ -13,175 +13,188 @@ from .telegram_importer import parse_telegram_comments
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
 
 
-class GISReviews(APIView):
-    def get_object(self, pk):
+def save_reviews(institution, reviews_data, source, text_key, date_key):
+    existing_texts = set(
+        Review.objects.filter(
+            institution=institution
+        ).values_list("text", flat=True)
+    )
+
+    new_reviews = []
+    skipped_count = 0
+
+    for data in reviews_data:
+        text = data[text_key]
+        if text in existing_texts:
+            skipped_count += 1
+            continue
+
+        new_reviews.append(
+            Review(
+                institution=institution,
+                text=text,
+                source=source,
+                reviewed_at=data[date_key],
+            )
+        )
+
+    with transaction.atomic():
+        created_reviews = Review.objects.bulk_create(new_reviews)
+
+    return created_reviews, skipped_count
+
+
+class BaseReviewsImportView(APIView):
+    source_name = None
+    text_key = "text"
+    date_key = "date"
+
+    def get_institution(self, institution_id):
         try:
-            return Institution.objects.get(pk=pk)
+            return Institution.objects.get(pk=institution_id)
         except Institution.DoesNotExist:
             return None
 
-    def post(self, request):
-        institution = self.get_object(request.data.get("institution_id"))
-        if institution is None:
-            return Response(
-                {"error": "Institution is not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        institution_gis_id = int(institution.gis_map_link.split("/")[-1])
+    def run_postprocessing(self, reviews):
+        for review in reviews:
+            compare_review_with_event.delay(review.id)
+            classify_review_sentiment.delay(review.id)
+            extract_aspects_for_review.delay(review.id)
 
-        url = f"https://public-api.reviews.2gis.com/3.0/branches/{institution_gis_id}/reviews?limit=50&key={settings.GIS_KEY}&locale=ru_RU&sort_by=date_created"
-        auth_header = f"Bearer {settings.GIS_AUTH_TOKEN}"
+    def response_ok(self, reviews, skipped_count, total_processed):
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(
+            {
+                "message": (
+                    f"Successfully imported {len(reviews)} reviews, "
+                    f"skipped {skipped_count} duplicates"
+                ),
+                "imported_reviews": serializer.data,
+                "total_processed": total_processed,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def response_not_found(self):
+        return Response(
+            {"error": "Institution is not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+class GISReviews(BaseReviewsImportView):
+    source_name = "2GIS"
+    date_key = "date_created"
+
+    def post(self, request):
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        gis_id = int(institution.gis_map_link.split("/")[-1])
+        url = (
+            f"https://public-api.reviews.2gis.com/3.0/branches/"
+            f"{gis_id}/reviews?limit=50&key={settings.GIS_KEY}"
+            f"&locale=ru_RU&sort_by=date_created"
+        )
 
         try:
             reviews_data = fetch_reviews_with_pagination(
                 initial_url=url,
-                auth_header=auth_header
+                auth_header=f"Bearer {settings.GIS_AUTH_TOKEN}",
             )
 
-            saved_count, skipped_count = 0, 0
-            with transaction.atomic():
-                for review_data in reviews_data:
-                    if not Review.objects.filter(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                    ).exists():
-                        Review.objects.create(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                            source="2GIS",
-                            reviewed_at=review_data["date_created"],
-                        )
-                        saved_count += 1
-                else:
-                    skipped_count += 1
+            created, skipped = save_reviews(
+                institution,
+                reviews_data,
+                source=self.source_name,
+                text_key=self.text_key,
+                date_key=self.date_key,
+            )
 
-            imported_reviews = Review.objects.order_by("-created_at")[:saved_count]
-            if imported_reviews:
-                for review in imported_reviews:
-                    compare_review_with_event.delay(review.id)
-                    classify_review_sentiment.delay(review.id)
-                    extract_aspects_for_review.delay(review.id)
+            self.run_postprocessing(created)
 
-            serializer = ReviewSerializer(imported_reviews, many=True)
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews_data),
+            )
 
-            return Response({
-                "message": f"Successfully imported {saved_count} reviews, skipped {skipped_count} duplicates",
-                "imported_reviews": serializer.data,
-                "total_processed": len(reviews_data)
-            }, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({
-                "error": f"Error occured: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
-class YandexReviews(APIView):
-    def get_object(self, pk):
-        try:
-            return Institution.objects.get(pk=pk)
-        except Institution.DoesNotExist:
-            return None
+class YandexReviews(BaseReviewsImportView):
+    source_name = "Яндекс Карты"
 
     def post(self, request):
-        institution = self.get_object(request.data.get("institution_id"))
-        if institution is None:
-            return Response(
-                {"error": "Institution is not found"},
-                status=status.HTTP_404_NOT_FOUND
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        yandex_id = int(institution.yandex_map_link.split("/")[-1])
+
+        try:
+            data = yandex_reviews_importer.parse_reviews(yandex_id=yandex_id)
+            reviews = data["company_reviews"]
+
+            created, skipped = save_reviews(
+                institution,
+                reviews,
+                source=self.source_name,
+                text_key=self.text_key,
+                date_key=self.date_key,
             )
-        institution_yandex_id = int(institution.yandex_map_link.split("/")[-1])
 
-        try:
-            reviews_data = yandex_reviews_importer.parse_reviews(yandex_id=institution_yandex_id)
+            self.run_postprocessing(created)
 
-            saved_count, skipped_count = 0, 0
-            with transaction.atomic():
-                for review_data in reviews_data["company_reviews"]:
-                    if not Review.objects.filter(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                    ).exists():
-                        Review.objects.create(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                            source="Яндекс Карты",
-                            reviewed_at=review_data["date"],
-                        )
-                        saved_count += 1
-                else:
-                    skipped_count += 1
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews),
+            )
 
-            imported_reviews = Review.objects.order_by("-created_at")[:saved_count]
-            if imported_reviews:
-                for review in imported_reviews:
-                    compare_review_with_event.delay(review.id)
-                    classify_review_sentiment.delay(review.id)
-                    extract_aspects_for_review.delay(review.id)
-
-            serializer = ReviewSerializer(imported_reviews, many=True)
-
-            return Response({
-                "message": f"Successfully imported {saved_count} reviews, skipped {skipped_count} duplicates",
-                "imported_reviews": serializer.data,
-                "total_processed": len(reviews_data)
-            }, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({
-                "error": f"Error occured: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
-class TelegramReviews(APIView):
-    def get_object(self, pk):
-        try:
-            return Institution.objects.get(pk=pk)
-        except Institution.DoesNotExist:
-            return None
+class TelegramReviews(BaseReviewsImportView):
+    source_name = "Telegram"
 
     def post(self, request):
-        institution = self.get_object(request.data.get("institution_id"))
-        if institution is None:
-            return Response(
-                {"error": "Institution is not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        institution_tg_id = institution.telegram_link.split("/")[-1]
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        tg_channel = institution.telegram_link.split("/")[-1]
 
         try:
-            reviews_data = parse_telegram_comments(institution_tg_id)
+            reviews = parse_telegram_comments(tg_channel)
 
-            saved_count, skipped_count = 0, 0
-            with transaction.atomic():
-                for review_data in reviews_data:
-                    if not Review.objects.filter(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                    ).exists():
-                        Review.objects.create(
-                            institution_id=institution.pk,
-                            text=review_data["text"],
-                            source="Telegram",
-                            reviewed_at=review_data["date"],
-                        )
-                        saved_count += 1
-                else:
-                    skipped_count += 1
+            created, skipped = save_reviews(
+                institution,
+                reviews,
+                source=self.source_name,
+                text_key=self.text_key,
+                date_key=self.date_key,
+            )
 
-            imported_reviews = Review.objects.order_by("-created_at")[:saved_count]
-            if imported_reviews:
-                for review in imported_reviews:
-                    compare_review_with_event.delay(review.id)
-                    classify_review_sentiment.delay(review.id)
-                    extract_aspects_for_review.delay(review.id)
+            self.run_postprocessing(created)
 
-            serializer = ReviewSerializer(imported_reviews, many=True)
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews),
+            )
 
-            return Response({
-                "message": f"Successfully imported {saved_count} reviews, skipped {skipped_count} duplicates",
-                "imported_reviews": serializer.data,
-                "total_processed": len(reviews_data)
-            }, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({
-                "error": f"Error occured: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
