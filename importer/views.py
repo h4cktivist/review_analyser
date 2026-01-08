@@ -47,6 +47,7 @@ class GISReviews(APIView):
                         Review.objects.create(
                             institution_id=institution.pk,
                             text=review_data["text"],
+                            source="2GIS",
                             reviewed_at=review_data["date_created"],
                         )
                         saved_count += 1
@@ -102,6 +103,7 @@ class YandexReviews(APIView):
                         Review.objects.create(
                             institution_id=institution.pk,
                             text=review_data["text"],
+                            source="Яндекс Карты",
                             reviewed_at=review_data["date"],
                         )
                         saved_count += 1

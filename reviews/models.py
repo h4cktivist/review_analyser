@@ -76,6 +76,10 @@ class Review(models.Model):
         verbose_name="Негативные аспекты отзыва",
         help_text="Список аспектов в формате JSON"
     )
+    source = models.CharField(
+        max_length=64,
+        verbose_name="Источник отзыва"
+    )
     reviewed_at = models.DateTimeField(verbose_name="Дата написания отзыва")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
