@@ -1,3 +1,5 @@
+import asyncio
+
 from django.db.models import Max
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +13,7 @@ from reviews.serializers import ReviewSerializer
 from .gis_importer import fetch_reviews_with_pagination
 from .yandex_importer import yandex_reviews_importer
 from .telegram_importer import parse_telegram_comments
+from .vk_importer import VKReviewsParser
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
 
 
@@ -178,7 +181,7 @@ class TelegramReviews(BaseReviewsImportView):
         last_review_dt = (
             Review.objects.filter(
                 institution=institution,
-                source="Telegram",
+                source=self.source_name,
             )
             .aggregate(last_date=Max("reviewed_at"))
             ["last_date"]
@@ -204,6 +207,57 @@ class TelegramReviews(BaseReviewsImportView):
                 created,
                 skipped,
                 total_processed=len(reviews),
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class VKReviews(BaseReviewsImportView):
+    source_name = "VK"
+
+    def post(self, request):
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        vk_group_id = institution.vk_link.split("/")[-1]
+
+        last_review_dt = (
+            Review.objects.filter(
+                institution=institution,
+                source=self.source_name,
+            )
+            .aggregate(last_date=Max("reviewed_at"))
+            ["last_date"]
+        )
+
+        try:
+            parser = VKReviewsParser(
+                group_id=vk_group_id,
+                token=settings.VK_USER_TOKEN,
+                from_date=last_review_dt,
+            )
+
+            reviews_data = asyncio.run(parser.parse())
+
+            created, skipped = save_reviews(
+                institution,
+                reviews_data,
+                source=self.source_name,
+                text_key="text",
+                date_key="date",
+            )
+
+            self.run_postprocessing(created)
+
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews_data),
             )
 
         except Exception as e:
