@@ -1,3 +1,4 @@
+from django.db.models import Max
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -174,15 +175,27 @@ class TelegramReviews(BaseReviewsImportView):
 
         tg_channel = institution.telegram_link.split("/")[-1]
 
+        last_review_dt = (
+            Review.objects.filter(
+                institution=institution,
+                source="Telegram",
+            )
+            .aggregate(last_date=Max("reviewed_at"))
+            ["last_date"]
+        )
+
         try:
-            reviews = parse_telegram_comments(tg_channel)
+            reviews = parse_telegram_comments(
+                channel_username=tg_channel,
+                since_dt=last_review_dt,
+            )
 
             created, skipped = save_reviews(
                 institution,
                 reviews,
                 source=self.source_name,
-                text_key=self.text_key,
-                date_key=self.date_key,
+                text_key="text",
+                date_key="date",
             )
 
             self.run_postprocessing(created)
