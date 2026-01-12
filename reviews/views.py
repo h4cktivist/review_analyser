@@ -1,3 +1,4 @@
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,6 +23,11 @@ class InstitutionList(APIView):
 
 
 class InstitutionDetail(APIView):
+    def get_permissions(self):
+        if self.request.method in ['GET', 'POST']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
     def get_object(self, pk):
         try:
             return Institution.objects.get(pk=pk)
@@ -82,6 +88,11 @@ class EventList(APIView):
 
 
 class EventDetail(APIView):
+    def get_permissions(self):
+        if self.request.method in ['GET', 'POST']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
     def get_object(self, pk):
         try:
             return Event.objects.get(pk=pk)
