@@ -14,6 +14,7 @@ from importer.services.gis_importer import fetch_reviews_with_pagination
 from importer.services.yandex_importer import yandex_reviews_importer
 from importer.services.telegram_importer import parse_telegram_comments
 from importer.services.vk_importer import VKReviewsParser
+from importer.services.otzovik_importer import OtzovikReviewsParser
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
 
 
@@ -243,6 +244,54 @@ class VKReviews(BaseReviewsImportView):
             )
 
             reviews_data = asyncio.run(parser.parse())
+
+            created, skipped = save_reviews(
+                institution,
+                reviews_data,
+                source=self.source_name,
+                text_key="text",
+                date_key="date",
+            )
+
+            self.run_postprocessing(created)
+
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews_data),
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class OtzovikReviews(BaseReviewsImportView):
+    source_name = "Отзовик"
+
+    def post(self, request):
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        otzovik_url = institution.otzovik_link
+        last_review_dt = (
+            Review.objects.filter(
+                institution=institution,
+                source=self.source_name,
+            )
+            .aggregate(last_date=Max("reviewed_at"))
+            ["last_date"]
+        )
+
+        try:
+            parser = OtzovikReviewsParser(
+                reviews_url=otzovik_url,
+                from_date=last_review_dt
+            )
+            reviews_data = parser.parse()
 
             created, skipped = save_reviews(
                 institution,
