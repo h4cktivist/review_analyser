@@ -10,10 +10,10 @@ from django.conf import settings
 
 from reviews.models import Institution, Review
 from reviews.serializers import ReviewSerializer
-from .gis_importer import fetch_reviews_with_pagination
-from .yandex_importer import yandex_reviews_importer
-from .telegram_importer import parse_telegram_comments
-from .vk_importer import VKReviewsParser
+from importer.services.gis_importer import fetch_reviews_with_pagination
+from importer.services.yandex_importer import yandex_reviews_importer
+from importer.services.telegram_importer import parse_telegram_comments
+from importer.services.vk_importer import VKReviewsParser
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
 
 
