@@ -15,7 +15,7 @@ from importer.services.yandex_importer import yandex_reviews_importer
 from importer.services.telegram_importer import parse_telegram_comments
 from importer.services.vk_importer import VKReviewsParser
 from importer.services.otzovik_importer import OtzovikReviewsParser
-from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment
+from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment, wrap_profanity
 
 
 def save_reviews(institution, reviews_data, source, text_key, date_key):
@@ -65,6 +65,7 @@ class BaseReviewsImportView(APIView):
             compare_review_with_event.delay(review.id)
             classify_review_sentiment.delay(review.id)
             extract_aspects_for_review.delay(review.id)
+            wrap_profanity.delay(review.id)
 
     def response_ok(self, reviews, skipped_count, total_processed):
         serializer = ReviewSerializer(reviews, many=True)

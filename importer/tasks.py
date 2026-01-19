@@ -4,6 +4,7 @@ from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
 from review_processor.aspect_extractor import aspect_extractor
 from review_processor.review_classifier import review_classifier
+from review_processor.profanity_wrapper import get_wrapped_prof_words
 
 
 @shared_task
@@ -68,6 +69,22 @@ def classify_review_sentiment(review_id: int):
         else:
             review.sentiment = cls_result['sentiment']
             review.confidence = cls_result['confidence']
+        review.save()
+
+    except Review.DoesNotExist:
+        print(f"Review {review_id} is not found")
+    except Exception as e:
+        print(f"Error with review {review_id}: {str(e)}")
+
+
+@shared_task
+def wrap_profanity(review_id: int):
+    try:
+        review = Review.objects.get(id=review_id)
+        if not review:
+            return
+
+        review.text = get_wrapped_prof_words(review.text)
         review.save()
 
     except Review.DoesNotExist:
