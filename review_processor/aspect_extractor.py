@@ -1,3 +1,4 @@
+import pymorphy3
 from pyabsa import ATEPCCheckpointManager
 
 
@@ -7,6 +8,7 @@ class AspectExtractor:
             checkpoint="models/aspect_extraction_model",
             auto_device=True
         )
+        self.morph = pymorphy3.MorphAnalyzer()
 
     def extract_aspects(self, text: str):
         if not text or not text.strip():
@@ -22,6 +24,7 @@ class AspectExtractor:
         sentiment_list = aspects[0].get("sentiment", [])
 
         for aspect, sentiment in zip(aspect_list, sentiment_list):
+            aspect = self.morph.parse(aspect)[0].normal_form
             if sentiment == "Negative":
                 negative_aspects.append(aspect)
             else:
