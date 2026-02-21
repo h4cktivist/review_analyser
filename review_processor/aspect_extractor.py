@@ -26,9 +26,9 @@ class AspectExtractor:
         for aspect, sentiment in zip(aspect_list, sentiment_list):
             aspect = self.morph.parse(aspect)[0].normal_form
             if sentiment == "Negative":
-                negative_aspects.append(aspect)
+                negative_aspects.append(aspect.lower())
             else:
-                positive_aspects.append(aspect)
+                positive_aspects.append(aspect.lower())
 
         return positive_aspects, negative_aspects
 
