@@ -1,0 +1,45 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Environment files (secrets — never in image)
+.env
+
+# Pytest / coverage
+.pytest_cache/
+htmlcov/
+*.cover
+
+# Django collected static (regenerated inside container)
+staticfiles/
+
+# Byte-compiled / optimized files
+*.pyc
+
+# Telegram session (mounted as volume)
+*.session
+
+# Temporary / OS files
+*.log
+Thumbs.db
+.DS_Store
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
