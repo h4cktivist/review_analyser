@@ -69,7 +69,7 @@ class YandexReviewsImporter:
         opts.add_argument('--disable-dev-shm-usage')
         opts.add_argument('headless')
         opts.add_argument('--disable-gpu')
-        driver = undetected_chromedriver.Chrome(options=opts)
+        driver = undetected_chromedriver.Chrome(options=opts, version_main=145)
         parser = YandexParser(driver=driver)
         driver.get(url)
         return parser
