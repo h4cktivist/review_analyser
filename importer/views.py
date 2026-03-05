@@ -15,6 +15,7 @@ from importer.services.yandex_importer import yandex_reviews_importer
 from importer.services.telegram_importer import parse_telegram_comments
 from importer.services.vk_importer import VKReviewsParser
 from importer.services.otzovik_importer import OtzovikReviewsParser
+from importer.services.ok_importer import fetch_ok_comments
 from .tasks import extract_aspects_for_review, compare_review_with_event, classify_review_sentiment, wrap_profanity
 
 
@@ -293,6 +294,42 @@ class OtzovikReviews(BaseReviewsImportView):
                 from_date=last_review_dt
             )
             reviews_data = parser.parse()
+
+            created, skipped = save_reviews(
+                institution,
+                reviews_data,
+                source=self.source_name,
+                text_key="text",
+                date_key="date",
+            )
+
+            self.run_postprocessing(created)
+
+            return self.response_ok(
+                created,
+                skipped,
+                total_processed=len(reviews_data),
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class OKReviews(BaseReviewsImportView):
+    source_name = "Одноклассники"
+
+    def post(self, request):
+        institution = self.get_institution(request.data.get("institution_id"))
+        if not institution:
+            return self.response_not_found()
+
+        ok_group_id = institution.ok_link.split("/")[-1]
+
+        try:
+            reviews_data = fetch_ok_comments(group_id=ok_group_id)
 
             created, skipped = save_reviews(
                 institution,

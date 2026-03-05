@@ -189,6 +189,9 @@ TELEGRAM_API_HASH = config("TELEGRAM_API_HASH")
 
 VK_USER_TOKEN = config("VK_USER_TOKEN")
 
+OK_ACCESS_TOKEN = config("OK_ACCESS_TOKEN")
+OK_SESSION_SECRET_KEY = config("OK_SESSION_SECRET_KEY")
+
 OPENSEARCH_DSL = {
     'default': {
         'hosts': [
