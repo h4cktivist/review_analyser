@@ -76,6 +76,11 @@ class Review(models.Model):
         verbose_name="Негативные аспекты отзыва",
         help_text="Список аспектов в формате JSON"
     )
+    required_actions = models.JSONField(
+        default=list,
+        verbose_name="Предлагаемые в отзыве действия",
+        help_text="Список дейсвтий в формате JSON"
+    )
     source = models.CharField(
         max_length=64,
         verbose_name="Источник отзыва"
