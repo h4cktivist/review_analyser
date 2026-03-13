@@ -34,6 +34,12 @@ tar -xf ./aspect_extraction_model.zip -C models
 python manage.py migrate
 ```
 
+Запустить микросервис анализа отзывов
+
+```shell
+uvicorn analysis_service.main:app --port 8001
+```
+
 Запустить Celery и само приложение
 
 ```shell

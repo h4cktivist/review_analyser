@@ -42,6 +42,3 @@ class OptimizedSentimentAnalyzer:
                 'positive': probs[1]
             }
         }
-
-
-review_classifier = OptimizedSentimentAnalyzer('models/classification_model')

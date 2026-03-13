@@ -1,14 +1,27 @@
+import httpx
 from celery import shared_task
+from decouple import config
 
 from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
-from review_processor.aspect_extractor import aspect_extractor
-from review_processor.review_classifier import review_classifier
 from review_processor.profanity_wrapper import get_wrapped_prof_words
+
+ANALYSIS_SERVICE_URL = config("ANALYSIS_SERVICE_URL", default="http://localhost:8001")
+_REQUEST_TIMEOUT = 120
+
+
+def _call_analyze(text: str) -> dict:
+    response = httpx.post(
+        f"{ANALYSIS_SERVICE_URL}/analyze",
+        json={"text": text},
+        timeout=_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 @shared_task
-def extract_aspects_for_review(review_id: int):
+def analyze_review(review_id: int):
     try:
         review = Review.objects.get(id=review_id)
 
@@ -18,13 +31,15 @@ def extract_aspects_for_review(review_id: int):
             review.save()
             return
 
-        positive_aspects, negative_aspects = aspect_extractor.extract_aspects(review.text)
+        result = _call_analyze(review.text)
 
-        review.positive_aspects = positive_aspects
-        review.negative_aspects = negative_aspects
+        review.sentiment = result["sentiment"]
+        review.confidence = result["confidence"]
+        review.positive_aspects = result["positive_aspects"]
+        review.negative_aspects = result["negative_aspects"]
         review.save()
 
-        print(f"Review {review_id} was processed")
+        print(f"Review {review_id} analyzed: sentiment={result['sentiment']}")
 
     except Review.DoesNotExist:
         print(f"Review {review_id} is not found")
@@ -49,27 +64,6 @@ def compare_review_with_event(review_id: int):
         review.save()
 
         print(f"Review {review_id} was processed, compared event ID: {event_id}")
-
-    except Review.DoesNotExist:
-        print(f"Review {review_id} is not found")
-    except Exception as e:
-        print(f"Error with review {review_id}: {str(e)}")
-
-
-@shared_task
-def classify_review_sentiment(review_id: int):
-    try:
-        review = Review.objects.get(id=review_id)
-        if not review:
-            return
-
-        cls_result = review_classifier.predict(text=review.text)
-        if abs(cls_result['probabilities']['negative'] - cls_result['probabilities']['positive']) < 0.15:
-            review.sentiment = 'neutral'
-        else:
-            review.sentiment = cls_result['sentiment']
-            review.confidence = cls_result['confidence']
-        review.save()
 
     except Review.DoesNotExist:
         print(f"Review {review_id} is not found")

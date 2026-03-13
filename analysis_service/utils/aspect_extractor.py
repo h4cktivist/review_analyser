@@ -31,6 +31,3 @@ class AspectExtractor:
                 positive_aspects.append(aspect.lower())
 
         return positive_aspects, negative_aspects
-
-
-aspect_extractor = AspectExtractor()
