@@ -5,6 +5,7 @@ from decouple import config
 from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
 from review_processor.profanity_wrapper import get_wrapped_prof_words
+from review_processor.action_extractor import extract_actions
 
 ANALYSIS_SERVICE_URL = config("ANALYSIS_SERVICE_URL", default="http://localhost:8001")
 _REQUEST_TIMEOUT = 120
@@ -33,10 +34,14 @@ def analyze_review(review_id: int):
 
         result = _call_analyze(review.text)
 
+        required_actions, potential_actions = extract_actions(review.text)
+
         review.sentiment = result["sentiment"]
         review.confidence = result["confidence"]
         review.positive_aspects = result["positive_aspects"]
         review.negative_aspects = result["negative_aspects"]
+        review.required_actions = required_actions
+        review.potential_actions = potential_actions
         review.save()
 
         print(f"Review {review_id} analyzed: sentiment={result['sentiment']}")

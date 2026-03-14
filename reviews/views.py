@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .documents import ReviewDocument
-from .models import Institution, Event, Review
+from .models import Institution, Event, Review, SuggestedActionWord
 from .serializers import InstitutionSerializer, EventSerializer, ReviewSerializer
 
 
@@ -223,3 +223,34 @@ class ReviewSearch(APIView):
             return Response({
                 'error': f'Error occured: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ActionConfirmationView(APIView):
+    def post(self, request, pk):
+        try:
+            review = Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            return Response({"error": "Review not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        action_word = request.data.get("action_word")
+        accepted = request.data.get("accepted")
+
+        if not action_word or accepted is None:
+            return Response({"error": "action_word and accepted are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if action_word not in review.potential_actions:
+            return Response({"error": "Action word not found in potential actions"}, status=status.HTTP_400_BAD_REQUEST)
+
+        review.potential_actions.remove(action_word)
+
+        if accepted:
+            if action_word not in review.required_actions:
+                review.required_actions.append(action_word)
+            SuggestedActionWord.objects.get_or_create(word=action_word)
+
+        review.save()
+
+        return Response({
+            "message": "Action processed successfully",
+            "required_actions": review.required_actions,
+            "potential_actions": review.potential_actions
+        }, status=status.HTTP_200_OK)

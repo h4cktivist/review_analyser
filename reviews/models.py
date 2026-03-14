@@ -32,6 +32,17 @@ class Event(models.Model):
         return self.name
 
 
+class SuggestedActionWord(models.Model):
+    word = models.CharField(max_length=255, unique=True, verbose_name="Слово/Фраза")
+
+    class Meta:
+        verbose_name = "Слово предлагаемого действия"
+        verbose_name_plural = "Мешок слов предлагаемых действий"
+
+    def __str__(self):
+        return self.word
+
+
 class Review(models.Model):
     TONE_CHOICES = [
         ("positive", "Положительный"),
@@ -80,6 +91,11 @@ class Review(models.Model):
         default=list,
         verbose_name="Предлагаемые в отзыве действия",
         help_text="Список дейсвтий в формате JSON"
+    )
+    potential_actions = models.JSONField(
+        default=list,
+        verbose_name="Потенциальные действия из отзыва",
+        help_text="Список потенциальных действий в формате JSON"
     )
     source = models.CharField(
         max_length=64,
