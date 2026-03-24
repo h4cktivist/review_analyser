@@ -1,46 +1,68 @@
 ## Система анализа отзывов посетителей театров и концертных залов ГАУК ТО «Тюменского концертно-театрального объединения»
 
-### Установка и запуск
+### Подготовка
 
-Создать `.env`-файл по аналогии с `.env.example`
-
-Установка зависимостей
+1. Создать `.env`:
 
 ```shell
-pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Установить и запустить Redis
+2. Скачать архивы [модели классификации](https://disk.yandex.ru/d/Yvdh_kowqPRo4g) и [модели извлечения аспектов](https://disk.yandex.ru/d/EaUnb_N5DBiJ3g), затем распаковать их в `models`:
 
-```shell
-docker run --name redis-container -d -p 6379:6379 redis
-```
-
-Установить и запустить OpenSearch
-
-```shell
-docker run -it -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" --name opensearch-node -d --env-file .env opensearchproject/opensearch:latest
-```
-
-Скачать архивы [модели классификации](https://disk.yandex.ru/d/Yvdh_kowqPRo4g) и [модели извлечения аспектов](https://disk.yandex.ru/d/EaUnb_N5DBiJ3g), и распаковать их содержимое в директорию models:
 ```shell
 tar -xf ./classification_model.zip -C models
 tar -xf ./aspect_extraction_model.zip -C models
 ```
 
-Примененить миграции
+### Запуск через Docker Compose
+
+```shell
+docker compose up --build
+```
+
+Доступно после запуска:
+- Django API: `http://localhost:8000`
+- Микросервис анализа: `http://localhost:8001`
+- Healthcheck: `http://localhost:8001/health`
+
+Остановить:
+
+```shell
+docker compose down
+```
+
+### Локальный запуск
+
+```shell
+pip install -r requirements.txt
+```
+
+Установить и запустить Redis:
+
+```shell
+docker run --name redis-container -d -p 6379:6379 redis
+```
+
+Установить и запустить OpenSearch:
+
+```shell
+docker run -it -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" --name opensearch-node -d --env-file .env opensearchproject/opensearch:latest
+```
+
+Применить миграции:
 
 ```shell
 python manage.py migrate
 ```
 
-Запустить микросервис анализа отзывов
+Запустить микросервис анализа:
 
 ```shell
 uvicorn analysis_service.main:app --port 8001
 ```
 
-Запустить Celery и само приложение
+Запустить Celery и приложение:
 
 ```shell
 celery -A review_analyser worker -l info -P gevent
