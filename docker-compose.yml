@@ -61,6 +61,8 @@ services:
     image: review_analyser:latest
     restart: unless-stopped
     env_file: .env
+    environment:
+      ANALYSIS_SERVICE_URL: http://analysis_service:8001
     volumes:
       - ./models:/app/models:ro
       - ./django_telegram_session.session:/app/django_telegram_session.session
@@ -74,10 +76,29 @@ services:
       opensearch:
         condition: service_healthy
 
+  analysis_service:
+    build:
+      context: .
+      dockerfile: analysis_service/Dockerfile
+    image: review_analysis_service:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./models:/app/models:ro
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   celery_worker:
     image: review_analyser:latest
     restart: unless-stopped
     env_file: .env
+    environment:
+      ANALYSIS_SERVICE_URL: http://analysis_service:8001
     command: ["celery"]
     volumes:
       - ./models:/app/models:ro
@@ -90,6 +111,8 @@ services:
       redis:
         condition: service_healthy
       opensearch:
+        condition: service_healthy
+      analysis_service:
         condition: service_healthy
 
 volumes:
