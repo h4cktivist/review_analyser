@@ -209,3 +209,5 @@ OPENSEARCH_DSL = {
         'verify_certs': False,
     }
 }
+
+EVENTS_WORKER_TOKEN = config("EVENTS_WORKER_TOKEN", default="")

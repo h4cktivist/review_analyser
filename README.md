@@ -62,6 +62,13 @@ python manage.py migrate
 uvicorn analysis_service.main:app --port 8001
 ```
 
+Создать .env для микросервиса импорта мероприятий с афиши и запустить:
+
+```shell
+cp events_worker/.env.example events_worker/.env
+uvicorn events_worker.main:app --host 0.0.0.0 --port 8002
+```
+
 Запустить Celery и приложение:
 
 ```shell

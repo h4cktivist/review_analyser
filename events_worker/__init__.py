@@ -1,0 +1,1 @@
+"""Events extraction worker package."""

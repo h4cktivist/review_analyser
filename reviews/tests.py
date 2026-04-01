@@ -1,6 +1,7 @@
 import datetime
 
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
@@ -212,3 +213,36 @@ class AuthenticationRequiredTests(TestCase):
 
         response = self.client.get(self.detail_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+@override_settings(EVENTS_WORKER_TOKEN="eternal-worker-token")
+class EventWorkerTokenAuthTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.events_url = reverse("event-list")
+        self.latest_date_url = reverse("event-latest-date")
+
+    def test_create_event_with_worker_token(self):
+        payload = {"name": "Worker imported event", "date": "2026-04-01T10:00:00Z"}
+        response = self.client.post(
+            self.events_url,
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION="Token eternal-worker-token"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Event.objects.count(), 1)
+
+    def test_create_event_without_auth_is_rejected(self):
+        payload = {"name": "Unauthorized event", "date": "2026-04-01T10:00:00Z"}
+        response = self.client.post(self.events_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_latest_event_date_with_worker_token(self):
+        Event.objects.create(name="Existing event", date="2026-04-01T10:00:00Z")
+        response = self.client.get(
+            self.latest_date_url,
+            HTTP_AUTHORIZATION="Token eternal-worker-token"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["last_event_date"].startswith("2026-04-01T10:00:00"))

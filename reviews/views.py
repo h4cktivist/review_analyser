@@ -1,4 +1,6 @@
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.conf import settings
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -74,17 +76,74 @@ class InstitutionDetail(APIView):
 
 
 class EventList(APIView):
+    permission_classes = [AllowAny]
+
+    def _has_worker_token(self, request):
+        worker_token = getattr(settings, "EVENTS_WORKER_TOKEN", "")
+        if not worker_token:
+            return False
+
+        authorization = request.headers.get("Authorization", "").strip()
+        token_from_auth = ""
+        if authorization:
+            parts = authorization.split(" ", 1)
+            if len(parts) == 2 and parts[0].lower() in {"token", "bearer"}:
+                token_from_auth = parts[1].strip()
+
+        token_from_header = request.headers.get("X-Worker-Token", "").strip()
+        provided_token = token_from_auth or token_from_header
+        return provided_token and provided_token == worker_token
+
+    def _is_allowed(self, request):
+        return bool(request.user and request.user.is_authenticated) or self._has_worker_token(request)
+
     def get(self, request):
+        if not self._is_allowed(request):
+            return Response({"error": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
         events = Event.objects.all().order_by('-date')
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        if not self._is_allowed(request):
+            return Response({"error": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EventLatestDate(APIView):
+    permission_classes = [AllowAny]
+
+    def _has_worker_token(self, request):
+        worker_token = getattr(settings, "EVENTS_WORKER_TOKEN", "")
+        if not worker_token:
+            return False
+
+        authorization = request.headers.get("Authorization", "").strip()
+        token_from_auth = ""
+        if authorization:
+            parts = authorization.split(" ", 1)
+            if len(parts) == 2 and parts[0].lower() in {"token", "bearer"}:
+                token_from_auth = parts[1].strip()
+
+        token_from_header = request.headers.get("X-Worker-Token", "").strip()
+        provided_token = token_from_auth or token_from_header
+        return provided_token and provided_token == worker_token
+
+    def _is_allowed(self, request):
+        return bool(request.user and request.user.is_authenticated) or self._has_worker_token(request)
+
+    def get(self, request):
+        if not self._is_allowed(request):
+            return Response({"error": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        latest_event = Event.objects.order_by("-date").first()
+        if latest_event:
+            return Response({"last_event_date": timezone.localtime(latest_event.date).isoformat()})
+        return Response({"last_event_date": None})
 
 
 class EventDetail(APIView):
