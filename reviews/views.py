@@ -75,7 +75,7 @@ class InstitutionDetail(APIView):
 
 class EventList(APIView):
     def get(self, request):
-        events = Event.objects.all()
+        events = Event.objects.all().order_by('-date')
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data)
 
