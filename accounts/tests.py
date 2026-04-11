@@ -5,6 +5,37 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 
+class ProfileViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.profile_url = reverse("profile")
+
+    def test_profile_unauthenticated_returns_401(self):
+        response = self.client.get(self.profile_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_profile_returns_user_data(self):
+        reg_url = reverse("register")
+        user_data = {
+            "email": "profile@example.com",
+            "username": "profileuser",
+            "password": "TestPassword123!",
+            "password2": "TestPassword123!",
+            "first_name": "P",
+            "last_name": "U",
+        }
+        reg = self.client.post(reg_url, user_data)
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        access = reg.data["access"]
+        response = self.client.get(
+            self.profile_url,
+            HTTP_AUTHORIZATION=f"Bearer {access}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "profileuser")
+        self.assertEqual(response.data["email"], "profile@example.com")
+
+
 class AuthenticationTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -65,3 +96,14 @@ class AuthenticationTests(TestCase):
     def test_token_refresh_invalid_token(self):
         response = self.client.post(self.token_refresh_url, {"refresh": "invalid_token"})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_registration_rejects_weak_password(self):
+        data = self.user_data.copy()
+        data["password"] = "123"
+        data["password2"] = "123"
+        response = self.client.post(self.register_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_login_missing_fields_returns_400(self):
+        response = self.client.post(self.login_url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
