@@ -35,6 +35,24 @@ class ProfileViewTests(TestCase):
         self.assertEqual(response.data["username"], "profileuser")
         self.assertEqual(response.data["email"], "profile@example.com")
 
+    def test_me_returns_same_as_profile(self):
+        reg_url = reverse("register")
+        user_data = {
+            "email": "me@example.com",
+            "username": "meuser",
+            "password": "TestPassword123!",
+            "password2": "TestPassword123!",
+            "first_name": "M",
+            "last_name": "E",
+        }
+        reg = self.client.post(reg_url, user_data)
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        access = reg.data["access"]
+        me_url = reverse("me")
+        response = self.client.get(me_url, HTTP_AUTHORIZATION=f"Bearer {access}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "meuser")
+
 
 class AuthenticationTests(TestCase):
     def setUp(self):
