@@ -30,7 +30,12 @@ def save_reviews(institution, reviews_data, source, text_key, date_key):
     skipped_count = 0
 
     for data in reviews_data:
-        text = data[text_key]
+        text = data.get(text_key)
+        reviewed_at = data.get(date_key)
+        if not text or reviewed_at is None:
+            skipped_count += 1
+            continue
+
         if text in existing_texts:
             skipped_count += 1
             continue
@@ -40,7 +45,7 @@ def save_reviews(institution, reviews_data, source, text_key, date_key):
                 institution=institution,
                 text=text,
                 source=source,
-                reviewed_at=data[date_key],
+                reviewed_at=reviewed_at,
             )
         )
 
@@ -225,6 +230,12 @@ class VKReviews(BaseReviewsImportView):
         institution = self.get_institution(request.data.get("institution_id"))
         if not institution:
             return self.response_not_found()
+        vk_access_token = request.data.get("vk_access_token")
+        if not vk_access_token:
+            return Response(
+                {"error": "vk_access_token is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         vk_group_id = institution.vk_link.split("/")[-1]
 
@@ -240,7 +251,7 @@ class VKReviews(BaseReviewsImportView):
         try:
             parser = VKReviewsParser(
                 group_id=vk_group_id,
-                token=settings.VK_USER_TOKEN,
+                token=vk_access_token,
                 from_date=last_review_dt,
             )
 
