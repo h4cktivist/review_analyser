@@ -93,6 +93,21 @@ services:
       timeout: 5s
       retries: 10
 
+  events_worker:
+    build:
+      context: .
+      dockerfile: events_worker/Dockerfile
+    image: review_events_worker:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MAIN_APP_API_URL: http://web:8000/api
+    ports:
+      - "8002:8002"
+    depends_on:
+      web:
+        condition: service_started
+
   celery_worker:
     image: review_analyser:latest
     restart: unless-stopped
