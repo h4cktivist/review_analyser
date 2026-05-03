@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -11,7 +12,7 @@ from rest_framework.test import APIClient
 
 from reviews.models import Institution, Review
 
-from .views import save_reviews
+from .services.reviews_import_service import save_reviews
 from .services.vk_importer import VKReviewsParser
 
 
@@ -114,9 +115,9 @@ class VKReviewsImportTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["error"], "vk_access_token is required")
 
-    @patch("importer.views.asyncio.run", return_value=[])
-    @patch("importer.views.VKReviewsParser")
-    def test_uses_vk_access_token_from_request(self, parser_mock, asyncio_run_mock):
+    @patch("importer.views.import_vk_reviews_task.delay")
+    def test_uses_vk_access_token_from_request(self, delay_mock):
+        delay_mock.return_value = SimpleNamespace(id="vk-task-1")
         token = "vk_token_from_frontend"
         response = self.client.post(
             self.url,
@@ -124,13 +125,9 @@ class VKReviewsImportTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        parser_mock.assert_called_once_with(
-            group_id="example_group",
-            token=token,
-            from_date=None,
-        )
-        asyncio_run_mock.assert_called_once()
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(response.data["task_id"], "vk-task-1")
+        delay_mock.assert_called_once_with(self.institution.id, token)
 
 
 class VKReviewsParserTests(TestCase):

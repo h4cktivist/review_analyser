@@ -2,6 +2,14 @@ import httpx
 from celery import shared_task
 from decouple import config
 
+from importer.services.reviews_import_service import (
+    import_gis_reviews,
+    import_ok_reviews,
+    import_otzovik_reviews,
+    import_telegram_reviews,
+    import_vk_reviews,
+    import_yandex_reviews,
+)
 from reviews.models import Review, Event
 from review_processor.event_comparator import event_comparator
 from review_processor.profanity_wrapper import get_wrapped_prof_words
@@ -9,6 +17,19 @@ from review_processor.action_extractor import extract_actions
 
 ANALYSIS_SERVICE_URL = config("ANALYSIS_SERVICE_URL", default="http://localhost:8001")
 _REQUEST_TIMEOUT = 120
+
+
+def _queue_postprocessing(review_ids: list[int]) -> None:
+    for review_id in review_ids:
+        compare_review_with_event.delay(review_id)
+        analyze_review.delay(review_id)
+        wrap_profanity.delay(review_id)
+
+
+def _finalize_import_result(result: dict) -> dict:
+    review_ids = result.pop("created_review_ids", [])
+    _queue_postprocessing(review_ids)
+    return result
 
 
 def _call_analyze(text: str) -> dict:
@@ -90,3 +111,39 @@ def wrap_profanity(review_id: int):
         print(f"Review {review_id} is not found")
     except Exception as e:
         print(f"Error with review {review_id}: {str(e)}")
+
+
+@shared_task
+def import_gis_reviews_task(institution_id: int):
+    result = import_gis_reviews(institution_id)
+    return _finalize_import_result(result)
+
+
+@shared_task
+def import_yandex_reviews_task(institution_id: int):
+    result = import_yandex_reviews(institution_id)
+    return _finalize_import_result(result)
+
+
+@shared_task
+def import_telegram_reviews_task(institution_id: int):
+    result = import_telegram_reviews(institution_id)
+    return _finalize_import_result(result)
+
+
+@shared_task
+def import_vk_reviews_task(institution_id: int, vk_access_token: str):
+    result = import_vk_reviews(institution_id, vk_access_token)
+    return _finalize_import_result(result)
+
+
+@shared_task
+def import_otzovik_reviews_task(institution_id: int):
+    result = import_otzovik_reviews(institution_id)
+    return _finalize_import_result(result)
+
+
+@shared_task
+def import_ok_reviews_task(institution_id: int):
+    result = import_ok_reviews(institution_id)
+    return _finalize_import_result(result)

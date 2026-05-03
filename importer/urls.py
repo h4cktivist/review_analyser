@@ -8,4 +8,5 @@ urlpatterns = [
     path('import-vk-reviews/', views.VKReviews.as_view(), name='import-vk-reviews'),
     path('import-otzovik-reviews/', views.OtzovikReviews.as_view(), name='import-otzovik-reviews'),
     path('import-ok-reviews/', views.OKReviews.as_view(), name='import-ok-reviews'),
+    path('import-tasks/<str:task_id>/', views.ImportTaskStatusView.as_view(), name='import-task-status'),
 ]
