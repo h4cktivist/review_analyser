@@ -28,32 +28,6 @@ services:
       timeout: 3s
       retries: 5
 
-  opensearch:
-    image: opensearchproject/opensearch:2
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - discovery.type=single-node
-      - DISABLE_INSTALL_DEMO_CONFIG=${DISABLE_INSTALL_DEMO_CONFIG}
-      - DISABLE_SECURITY_PLUGIN=${DISABLE_SECURITY_PLUGIN}
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - opensearch_data:/usr/share/opensearch/data
-    ports:
-      - "9200:9200"
-      - "9600:9600"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 > /dev/null || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 20
-
   web:
     build:
       context: .
@@ -72,8 +46,6 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      opensearch:
         condition: service_healthy
 
   analysis_service:
@@ -125,11 +97,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      opensearch:
-        condition: service_healthy
       analysis_service:
         condition: service_healthy
 
 volumes:
   postgres_data:
-  opensearch_data:

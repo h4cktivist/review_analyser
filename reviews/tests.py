@@ -1,5 +1,4 @@
 import datetime
-from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 from django.test import override_settings
@@ -428,7 +427,6 @@ class ReviewDetailExtraTests(TestCase):
         self.assertEqual(self.review.sentiment, "neutral")
 
 
-@patch("reviews.views.ReviewDocument")
 class ReviewSearchTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -447,32 +445,24 @@ class ReviewSearchTests(TestCase):
         self.review = Review.objects.create(**_review_defaults(self.institution, text="уникальный запрос"))
         self.url = reverse("review-search")
 
-    def test_empty_query_returns_empty_results(self, mock_doc):
+    def test_empty_query_returns_empty_results(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["results"], [])
         self.assertEqual(response.data["count"], 0)
-        mock_doc.search.assert_not_called()
 
-    def test_search_returns_serialized_reviews(self, mock_doc):
-        hit = MagicMock()
-        hit.meta.id = str(self.review.pk)
-        chain = MagicMock()
-        chain.execute.return_value = [hit]
-        mock_doc.search.return_value.query.return_value = chain
-
+    def test_search_returns_serialized_reviews(self):
         response = self.client.get(self.url, {"q": "уникальный"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.review.id)
 
-    def test_search_opensearch_error_returns_500(self, mock_doc):
-        mock_doc.search.return_value.query.return_value.execute.side_effect = RuntimeError("cluster down")
-
-        response = self.client.get(self.url, {"q": "anything"})
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-        self.assertIn("error", response.data)
+    def test_search_by_id_returns_review(self):
+        response = self.client.get(self.url, {"q": str(self.review.id)})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.review.id)
 
 
 class ActionConfirmationViewTests(TestCase):

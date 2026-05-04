@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
-    "django_opensearch_dsl",
     "djantimat",
 
     "accounts",
@@ -189,23 +188,5 @@ TELEGRAM_API_HASH = config("TELEGRAM_API_HASH")
 
 OK_ACCESS_TOKEN = config("OK_ACCESS_TOKEN")
 OK_SESSION_SECRET_KEY = config("OK_SESSION_SECRET_KEY")
-
-OPENSEARCH_DSL = {
-    'default': {
-        'hosts': [
-            {
-                'host': config('OPENSEARCH_HOST'),
-                'port': config('OPENSEARCH_PORT'),
-                'http_compress': True,
-            }
-        ],
-        'timeout': 30,
-        'max_retries': 10,
-        'retry_on_timeout': True,
-        'http_auth': None,
-        'use_ssl': False,
-        'verify_certs': False,
-    }
-}
 
 EVENTS_WORKER_TOKEN = config("EVENTS_WORKER_TOKEN", default="")

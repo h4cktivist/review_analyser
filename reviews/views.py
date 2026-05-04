@@ -1,11 +1,11 @@
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .documents import ReviewDocument
 from .models import Institution, Event, Review, SuggestedActionWord
 from .serializers import InstitutionSerializer, EventSerializer, ReviewSerializer
 
@@ -258,30 +258,25 @@ class ReviewDetail(APIView):
 
 class ReviewSearch(APIView):
     def get(self, request, *args, **kwargs):
-        search_query = request.GET.get('q', '').strip()
+        search_query = request.GET.get("q", "").strip()
         if not search_query:
             return Response({
-                'results': [],
-                'count': 0,
-                'query': search_query
+                "results": [],
+                "count": 0,
+                "query": search_query,
             })
-        try:
-            search = ReviewDocument.search().query(
-                'match', text=search_query
-            )
-            response = search.execute()
-            review_ids = [hit.meta.id for hit in response]
-            reviews = Review.objects.filter(id__in=review_ids)
-            serializer = ReviewSerializer(reviews, many=True)
-            return Response({
-                'results': serializer.data,
-                'count': len(serializer.data),
-                'query': search_query,
-            })
-        except Exception as e:
-            return Response({
-                'error': f'Error occured: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        query_filter = Q(text__icontains=search_query)
+        if search_query.isdigit():
+            query_filter |= Q(id=int(search_query))
+
+        reviews = Review.objects.filter(query_filter).order_by("-reviewed_at")
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response({
+            "results": serializer.data,
+            "count": len(serializer.data),
+            "query": search_query,
+        })
 
 class ActionConfirmationView(APIView):
     def post(self, request, pk):
