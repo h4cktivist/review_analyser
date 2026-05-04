@@ -8,6 +8,10 @@ WORKDIR /app
 
 COPY requirements.txt .
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir \
     torch==2.9.1 \
     torchvision==0.24.1 \
