@@ -64,6 +64,15 @@ class TKTOEventParser:
         except Exception:
             return False
 
+    def parse_is_rent(self, card) -> bool:
+        """Метка аренды: span.events__item-branch с title или текстом «Аренда»."""
+        for span in card.find_all("span", class_="events__item-branch"):
+            title = (span.get("title") or "").strip()
+            text = span.get_text(strip=True)
+            if title == "Аренда" or text == "Аренда":
+                return True
+        return False
+
     def parse_events_from_html(self, html: str):
         soup = BeautifulSoup(html, "html.parser")
         events = []
@@ -90,13 +99,18 @@ class TKTOEventParser:
                 if not date_info:
                     continue
 
+                is_rent = self.parse_is_rent(card)
                 if date_info["times"]:
                     for item_time in date_info["times"]:
-                        event = {"event_name": title, "meeting_date": f"{date_info['date']} {item_time}"}
+                        event = {
+                            "event_name": title,
+                            "meeting_date": f"{date_info['date']} {item_time}",
+                            "is_rent": is_rent,
+                        }
                         if self.is_date_valid(event["meeting_date"]):
                             events.append(event)
                 else:
-                    event = {"event_name": title, "meeting_date": date_info["date"]}
+                    event = {"event_name": title, "meeting_date": date_info["date"], "is_rent": is_rent}
                     if self.is_date_valid(event["meeting_date"]):
                         events.append(event)
             except Exception:

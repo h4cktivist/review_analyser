@@ -34,14 +34,18 @@ class MainAppClient:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed
 
-    def send_event(self, event_name: str, meeting_date: str):
+    def send_event(self, event_name: str, meeting_date: str, is_rent: bool = False):
         if " " in meeting_date:
             event_dt = datetime.strptime(meeting_date, "%Y-%m-%d %H:%M")
         else:
             event_dt = datetime.strptime(meeting_date, "%Y-%m-%d")
         event_dt = event_dt.replace(tzinfo=timezone.utc)
 
-        payload = {"name": event_name, "date": event_dt.isoformat().replace("+00:00", "Z")}
+        payload = {
+            "name": event_name,
+            "date": event_dt.isoformat().replace("+00:00", "Z"),
+            "is_rent": is_rent,
+        }
         response = self.session.post(f"{self.base_url}/events/", json=payload, timeout=20)
         if response.status_code not in (200, 201):
             raise RuntimeError(f"Failed to create event: {response.status_code} {response.text}")

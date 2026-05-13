@@ -33,7 +33,8 @@ class InstitutionCRUDTests(TestCase):
         self.user = User.objects.create_user(
             username="testuser",
             email="test@example.com",
-            password="testpass123"
+            password="testpass123",
+            is_staff=True,
         )
 
         self.client.force_authenticate(user=self.user)
@@ -237,6 +238,22 @@ class EventWorkerTokenAuthTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Event.objects.count(), 1)
+        self.assertFalse(Event.objects.get().is_rent)
+
+    def test_create_event_with_is_rent(self):
+        payload = {
+            "name": "Rent hall event",
+            "date": "2026-04-01T10:00:00Z",
+            "is_rent": True,
+        }
+        response = self.client.post(
+            self.events_url,
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION="Token eternal-worker-token",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Event.objects.get(name="Rent hall event").is_rent)
 
     def test_create_event_without_auth_is_rejected(self):
         payload = {"name": "Unauthorized event", "date": "2026-04-01T10:00:00Z"}

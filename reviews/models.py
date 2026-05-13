@@ -23,6 +23,7 @@ class Institution(models.Model):
 class Event(models.Model):
     name = models.CharField(max_length=255, verbose_name="Название")
     date = models.DateTimeField(verbose_name="Дата мероприятия")
+    is_rent = models.BooleanField(verbose_name="Аренда", default=False)
 
     class Meta:
         verbose_name = "Мероприятие"

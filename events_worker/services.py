@@ -40,7 +40,12 @@ async def run_import(state: WorkerState, run_lock: asyncio.Lock, trigger: str):
             imported_count = 0
             for event in events:
                 try:
-                    await asyncio.to_thread(client.send_event, event["event_name"], event["meeting_date"])
+                    await asyncio.to_thread(
+                        client.send_event,
+                        event["event_name"],
+                        event["meeting_date"],
+                        event.get("is_rent", False),
+                    )
                     imported_count += 1
                 except Exception as exc:
                     logger.warning("Ошибка отправки события '%s': %s", event["event_name"], exc)
