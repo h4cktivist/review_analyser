@@ -34,10 +34,13 @@ class EventComparator:
             lemmas = self.preprocess_text(event.name)
 
             key_lemmas = [lemma for lemma in lemmas if lemma not in self.stop_words]
+            match_lemmas = frozenset(key_lemmas) if key_lemmas else frozenset(lemmas)
+            if not match_lemmas:
+                continue
 
             event_index[i] = {
                 'event_id': event.pk,
-                'key_lemmas': set(key_lemmas),
+                'match_lemmas': match_lemmas,
                 'processed_name': ' '.join(lemmas)
             }
 
@@ -45,13 +48,20 @@ class EventComparator:
 
     def fast_filter(self, review_lemmas, event_index) -> list:
         candidates = []
+        review_set = set(review_lemmas)
 
         for event_id, event_data in event_index.items():
-            key_lemmas = event_data['key_lemmas']
+            match_lemmas = event_data['match_lemmas']
 
-            if key_lemmas.intersection(review_lemmas):
-                match_count = len(key_lemmas.intersection(review_lemmas))
-                candidates.append((event_id, match_count))
+            if len(match_lemmas) >= 2:
+                if not match_lemmas.issubset(review_set):
+                    continue
+            else:
+                if not (match_lemmas & review_set):
+                    continue
+
+            match_count = len(match_lemmas & review_set)
+            candidates.append((event_id, match_count))
 
         candidates.sort(key=lambda x: x[1], reverse=True)
         return [candidate[0] for candidate in candidates]
